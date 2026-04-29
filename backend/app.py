@@ -53,7 +53,12 @@ from ai_engine import translate_to_english, generate_formal_letter
 db.init_app(app)
 ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
 
-# In-memory OTP store: { phone: {otp, name, expires_at} }
+# ── Initialize database tables (runs for both gunicorn and direct python run) ──
+with app.app_context():
+    db.create_all()
+    print("[OK] Database initialised")
+
+# In-memory OTP store: { email: {otp, name, expires_at} }
 _otp_store: dict = {}
 
 
@@ -457,7 +462,4 @@ def api_stats():
 
 # ── Entrypoint ─────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        print("[OK] Database initialised")
     app.run(debug=True, host='0.0.0.0', port=5000)
