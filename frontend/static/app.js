@@ -76,7 +76,7 @@ function buildTimeline(currentStatus, logs = []) {
     const isActive = i === currentIdx;
     const cls = isDone ? 'done' : (isActive ? 'active' : '');
     const log = logs.find(l => l.action.toLowerCase().includes(s));
-    const time = log ? new Date(log.timestamp).toLocaleString('en-IN') : '';
+    const time = log ? fmtDate(log.timestamp) : '';
     return `
       <div class="timeline-step ${cls}">
         <div class="timeline-icon">${isDone ? '✓' : info.icon}</div>
@@ -142,11 +142,15 @@ async function getLocation() {
   });
 }
 
-/* ── Date format ────────────────────────────────────────────────────────────── */
+/* ── Date format ───────────────────────────────────────────────────────── */
 function fmtDate(iso) {
-  return new Date(iso).toLocaleString('en-IN', {
+  if (!iso) return '—';
+  // Backend stores UTC without 'Z' suffix — append it so JS treats it as UTC
+  const utcStr = (iso.endsWith('Z') || iso.includes('+')) ? iso : iso + 'Z';
+  return new Date(utcStr).toLocaleString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
+    hour: '2-digit', minute: '2-digit',
+    timeZone: 'Asia/Kolkata'   // ← always show IST regardless of server timezone
   });
 }
 

@@ -1,8 +1,12 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# India Standard Time = UTC+5:30
+IST = timezone(timedelta(hours=5, minutes=30))
+
 
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
 
@@ -52,7 +56,7 @@ Complaint Details:
 - Complaint Text: {complaint_text}
 - Location: {location}
 - Priority: {priority}
-- Date: {datetime.now().strftime('%d %B %Y')}
+- Date: {datetime.now(IST).strftime('%d %B %Y')}
 
 Instructions:
 1. Format as a proper letter with Subject, Body, and closing
@@ -73,7 +77,7 @@ Write ONLY the letter content, nothing else.
 
 def _generate_with_template(complaint_text: str, location: str, is_emergency: bool) -> str:
     """Rule-based formal letter template (zero API cost fallback)."""
-    date_str = datetime.now().strftime('%d %B %Y')
+    date_str = datetime.now(IST).strftime('%d %B %Y')
     priority_line = "\n⚠️  URGENT / EMERGENCY — Immediate action is requested.\n" if is_emergency else ""
 
     return f"""Date: {date_str}
