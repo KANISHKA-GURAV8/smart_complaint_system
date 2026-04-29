@@ -3,7 +3,7 @@ Flask-CORS==4.0.0
 SQLAlchemy==2.0.29
 Flask-SQLAlchemy==3.1.1
 Werkzeug==3.0.1
-Pillow==10.3.0
+Pillow==11.1.0
 deep-translator==1.11.4
 google-generativeai==0.7.2
 python-dotenv==1.0.1
