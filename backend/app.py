@@ -16,12 +16,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── App setup ──────────────────────────────────────────────────────────────────
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_DIR = os.path.join(BASE_DIR, '..', 'frontend')
-UPLOAD_DIR = os.path.join(BASE_DIR, 'uploads')
-ALLOWED_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4'}
+BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.realpath(os.path.join(BASE_DIR, '..', 'frontend'))
+UPLOAD_DIR   = os.path.join(BASE_DIR, 'uploads')
+ALLOWED_EXT  = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4'}
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+print(f"[OK] BASE_DIR:     {BASE_DIR}")
+print(f"[OK] FRONTEND_DIR: {FRONTEND_DIR}")
+print(f"[OK] UPLOAD_DIR:   {UPLOAD_DIR}")
+
 
 app = Flask(
     __name__,
