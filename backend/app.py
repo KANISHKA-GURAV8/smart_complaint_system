@@ -54,9 +54,21 @@ db.init_app(app)
 ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')
 
 # ── Initialize database tables (runs for both gunicorn and direct python run) ──
-with app.app_context():
-    db.create_all()
-    print("[OK] Database initialised")
+try:
+    with app.app_context():
+        db.create_all()
+        print("[OK] Database initialised")
+except Exception as _db_err:
+    import traceback
+    print(f"[ERROR] Database init failed: {_db_err}")
+    traceback.print_exc()
+
+# Validate frontend directory exists
+if not os.path.isdir(FRONTEND_DIR):
+    print(f"[WARNING] FRONTEND_DIR not found: {FRONTEND_DIR}")
+else:
+    print(f"[OK] Frontend directory found: {FRONTEND_DIR}")
+
 
 # In-memory OTP store: { email: {otp, name, expires_at} }
 _otp_store: dict = {}
