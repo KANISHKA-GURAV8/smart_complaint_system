@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Track Complaint — Awaaz</title>
+  <meta name="description" content="Track your complaint status using your Complaint ID. See real-time updates and proof of resolution."/>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <style>
+    .track-hero { text-align:center; padding: 3rem 1rem 2rem; }
+    .track-hero h1 { font-size:clamp(1.6rem,3vw,2.4rem); font-weight:800; margin-bottom:.5rem; }
+    .track-hero p  { color:var(--text-secondary); }
+    .search-bar    { display:flex; gap:.75rem; max-width:540px; margin:1.5rem auto 0; }
+    .search-bar input { flex:1; }
+    .result-section { max-width:760px; margin:0 auto; padding-bottom:4rem; }
+    .info-row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.35rem; }
+    .info-label { font-size:.8rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; min-width:110px; }
+    .info-value { font-size:.95rem; }
+    .letter-box {
+      background:rgba(255,255,255,0.03); border:1px solid var(--border);
+      border-radius:var(--radius-md); padding:1.25rem;
+      white-space:pre-wrap; font-size:.85rem; line-height:1.7;
+      color:var(--text-secondary); font-family:'JetBrains Mono',monospace;
+      max-height:300px; overflow-y:auto;
+    }
+    .proof-label { font-size:.8rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:.75rem; }
+    .blockchain-info { padding:.75rem 1rem; border-radius:var(--radius-sm); background:rgba(0,209,160,0.06); border:1px solid rgba(0,209,160,0.2); }
+    .blockchain-label { font-size:.78rem; color:var(--success); font-weight:700; margin-bottom:.35rem; }
+    .empty-state { text-align:center; padding:4rem 1rem; color:var(--text-muted); }
+    .empty-state .empty-icon { font-size:4rem; margin-bottom:1rem; }
+  </style>
+</head>
+<body>
+<div class="bg-mesh"></div>
+<nav class="navbar">
+  <a href="/" class="navbar-brand"><div class="logo-icon">🗣️</div><span>Awaaz</span></a>
+  <div class="navbar-links">
+    <a href="/" style="display:flex;align-items:center;gap:.35rem;"><span style="font-size:1.15rem">🏠</span> Home</a>
+    <div id="nav-user-area" style="display:flex;align-items:center;gap:.6rem;"></div>
+    <a href="/submit" class="btn btn-primary btn-sm"><span style="font-size:1.1rem">📝</span> New Complaint</a>
+  </div>
+</nav>
+
+<div class="track-hero">
+  <div style="font-size:4rem;margin-bottom:.5rem;">📦</div>
+  <h1>Track Your Complaint</h1>
+  <p>Enter your Complaint ID to see real-time status and updates.</p>
+  <div class="search-bar">
+    <input type="text" id="cid-input" class="form-control" placeholder="e.g. CMP-A1B2C3"
+           style="font-family:'JetBrains Mono',monospace; text-transform:uppercase; letter-spacing:.08em;"/>
+    <button class="btn btn-primary" id="search-btn" onclick="trackComplaint()" style="font-size:1rem;padding:.6rem 1.25rem;">
+      🔍 Track
+    </button>
+  </div>
+</div>
+
+<div class="container result-section" id="result-section" style="display:none;">
+
+  <!-- Header card -->
+  <div class="card fade-up" style="margin-bottom:1.25rem;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+      <div>
+        <div style="font-size:.78rem; color:var(--text-muted); margin-bottom:.3rem;">COMPLAINT ID</div>
+        <div class="complaint-id-display" id="res-id" onclick="copyText(this.textContent)" title="Click to copy" style="cursor:pointer;"></div>
+      </div>
+      <div style="display:flex; gap:.5rem; flex-direction:column; align-items:flex-end;">
+        <div id="res-status-badge"></div>
+        <div id="res-emergency-badge"></div>
+      </div>
+    </div>
+    <div style="margin-top:1rem; display:grid; grid-template-columns:1fr 1fr; gap:.5rem;">
+      <div class="info-row"><span class="info-label">📅 Filed on</span><span class="info-value" id="res-date"></span></div>
+      <div class="info-row"><span class="info-label">📍 Location</span><span class="info-value" id="res-loc"></span></div>
+      <div class="info-row"><span class="info-label">🏢 Assigned to</span><span class="info-value" id="res-assigned"></span></div>
+      <div class="info-row"><span class="info-label">✅ Response</span><span class="info-value" id="res-response"></span></div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="card fade-up fade-up-1" style="margin-bottom:1.25rem;">
+    <div class="card-title">📊 Status Timeline</div>
+    <div class="timeline" id="res-timeline"></div>
+  </div>
+
+  <!-- Formal Letter -->
+  <div class="card fade-up fade-up-2" style="margin-bottom:1.25rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.75rem; flex-wrap:wrap; gap:.5rem;">
+      <div class="card-title" style="margin:0;">📄 AI-Generated Formal Letter</div>
+      <button class="btn btn-secondary btn-sm" onclick="copyText(document.getElementById('res-letter').textContent)">📋 Copy Letter</button>
+    </div>
+    <div class="letter-box" id="res-letter"></div>
+  </div>
+
+  <!-- Resolution proof -->
+  <div class="card fade-up fade-up-3" id="proof-card" style="margin-bottom:1.25rem; display:none;">
+    <div class="card-title">📷 Resolution Proof</div>
+    <div class="proof-label">Images uploaded by authority after resolution</div>
+    <div class="image-grid" id="res-images"></div>
+  </div>
+
+  <!-- Blockchain verification -->
+  <div class="card fade-up fade-up-4" style="margin-bottom:1.25rem;">
+    <div class="card-title">🔗 Tamper-proof Record</div>
+    <div class="blockchain-info">
+      <div class="blockchain-label">✅ Blockchain Verification</div>
+      <div style="font-size:.82rem; color:var(--text-secondary); margin-bottom:.5rem;">
+        Every event is cryptographically logged. This hash uniquely identifies your complaint record.
+      </div>
+      <div class="hash-code" id="res-hash"></div>
+    </div>
+    <div style="margin-top:1rem;">
+      <div class="proof-label">Event Log</div>
+      <div id="res-log" style="display:flex; flex-direction:column; gap:.5rem;"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Empty state -->
+<div id="empty-state" class="empty-state" style="display:none;">
+  <div class="empty-icon">🔍</div>
+  <h3 style="margin-bottom:.5rem;">Complaint Not Found</h3>
+  <p>Please check the Complaint ID and try again.</p>
+  <a href="/submit" class="btn btn-primary" style="margin-top:1.5rem;">File a New Complaint</a>
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+  // Load user session for navbar (track page is PUBLIC — no redirect)
+  (async () => {
+    try {
+      const me = await apiGet('/api/user/me');
+      const nav = document.getElementById('nav-user-area');
+      if (me.logged_in) {
+        nav.innerHTML = `
+          <span style="font-size:.88rem;color:var(--success);font-weight:600;">👤 ${me.name}</span>
+          <button class="btn btn-secondary btn-sm" onclick="doLogout()">🚪 Logout</button>
+        `;
+      }
+    } catch(_) {}
+  })();
+
+  async function doLogout() {
+    try { await apiPost('/api/user/logout', {}); } catch(_) {}
+    location.href = '/login?next=/track';
+  }
+
+  // Auto-fill from URL param
+  const urlId = new URLSearchParams(location.search).get('id');
+  if (urlId) { document.getElementById('cid-input').value = urlId; trackComplaint(); }
+
+  document.getElementById('cid-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') trackComplaint();
+  });
+
+  async function trackComplaint() {
+    const cid = document.getElementById('cid-input').value.trim().toUpperCase();
+    if (!cid) { showToast('Please enter a Complaint ID.', 'error'); return; }
+
+    document.getElementById('result-section').style.display = 'none';
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('search-btn').textContent = '⏳ Searching…';
+    document.getElementById('search-btn').disabled = true;
+
+    try {
+      const d = await apiGet(`/api/track/${cid}`);
+      renderResult(d);
+      document.getElementById('result-section').style.display = 'block';
+    } catch(e) {
+      document.getElementById('empty-state').style.display = 'block';
+      showToast('Complaint not found.', 'error');
+    }
+    document.getElementById('search-btn').textContent = '🔍 Track';
+    document.getElementById('search-btn').disabled = false;
+  }
+
+  function renderResult(d) {
+    document.getElementById('res-id').textContent = d.id;
+    document.getElementById('res-status-badge').innerHTML = statusBadge(d.status);
+    document.getElementById('res-emergency-badge').innerHTML = d.is_emergency
+      ? '<span class="badge badge-emergency badge-dot">🚨 Emergency</span>'
+      : '<span class="badge badge-normal badge-dot">⚡ Normal</span>';
+    document.getElementById('res-date').textContent = fmtDate(d.created_at);
+    document.getElementById('res-loc').textContent  = (d.location_name || 'Not provided').substring(0,80);
+    document.getElementById('res-assigned').textContent  = d.assigned_to || 'Pending assignment';
+    document.getElementById('res-response').textContent  =
+      d.work_completed ? '✅ Work Completed' : (d.response_submitted ? '📨 Response Submitted' : 'Awaiting response');
+
+    // Timeline
+    document.getElementById('res-timeline').innerHTML = buildTimeline(d.status, d.logs);
+
+    // Formal letter
+    document.getElementById('res-letter').textContent = d.formal_letter || 'Letter not available.';
+
+    // Resolution images
+    const imgs = d.resolution_images || [];
+    if (imgs.length) {
+      document.getElementById('proof-card').style.display = 'block';
+      document.getElementById('res-images').innerHTML = imgs.map(f =>
+        `<img src="/uploads/${f}" alt="Resolution proof" onclick="window.open(this.src)">`
+      ).join('');
+    }
+
+    // Hash
+    document.getElementById('res-hash').textContent = d.blockchain_hash || 'N/A';
+
+    // Event log
+    document.getElementById('res-log').innerHTML = (d.logs || []).map(l => `
+      <div style="display:flex; gap:.75rem; align-items:flex-start; font-size:.82rem;">
+        <span style="color:var(--accent); font-family:'JetBrains Mono',monospace; flex-shrink:0;">${l.block_hash.substring(0,12)}…</span>
+        <span style="color:var(--text-secondary);">${l.action.replace(/_/g,' ')} — ${fmtDate(l.timestamp)}</span>
+      </div>`).join('') || '<p style="color:var(--text-muted); font-size:.85rem;">No log entries yet.</p>';
+  }
+</script>
+</body>
+</html>

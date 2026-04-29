@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Complaint Detail — Awaaz Admin</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <style>
+    .detail-layout { display:grid; grid-template-columns:1fr 360px; gap:1.5rem; align-items:start; }
+    @media(max-width:900px){ .detail-layout { grid-template-columns:1fr; } }
+    .section-title { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-muted); margin-bottom:.75rem; }
+    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+    .info-cell { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.75rem 1rem; }
+    .info-cell .label { font-size:.75rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; margin-bottom:.25rem; }
+    .info-cell .value { font-size:.92rem; }
+    .letter-box { white-space:pre-wrap; font-size:.85rem; line-height:1.75; color:var(--text-secondary); font-family:'JetBrains Mono',monospace; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:var(--radius-md); padding:1.25rem; max-height:350px; overflow-y:auto; }
+    .action-card { position:sticky; top:80px; }
+    .action-group { margin-bottom:1.25rem; }
+    .action-group-label { font-size:.8rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:.6rem; }
+    .check-row { display:flex; align-items:center; gap:.75rem; padding:.6rem 0; }
+    .check-row input[type=checkbox] { width:18px; height:18px; accent-color:var(--accent); cursor:pointer; }
+    .check-row label { font-size:.92rem; cursor:pointer; }
+    .status-select { width:100%; }
+    .anon-badge { display:inline-flex; align-items:center; gap:.4rem; padding:.3rem .75rem; border-radius:100px; background:rgba(108,99,255,0.12); border:1px solid rgba(108,99,255,0.25); font-size:.8rem; color:var(--accent); font-weight:600; }
+    .map-link { display:inline-flex; align-items:center; gap:.4rem; font-size:.85rem; color:var(--accent); font-weight:600; }
+    .map-link:hover { text-decoration:underline; }
+    .log-entry { display:flex; gap:.75rem; align-items:flex-start; padding:.5rem 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:.82rem; }
+    .log-entry:last-child { border-bottom:none; }
+    .log-hash { font-family:'JetBrains Mono',monospace; color:var(--accent); flex-shrink:0; }
+    .log-action { color:var(--text-secondary); }
+    .back-btn { display:inline-flex; align-items:center; gap:.5rem; margin-bottom:1.5rem; color:var(--text-secondary); font-size:.9rem; font-weight:500; }
+    .back-btn:hover { color:var(--text-primary); }
+  </style>
+</head>
+<body>
+<div class="bg-mesh"></div>
+<nav class="navbar">
+  <a href="/admin/dashboard" class="navbar-brand"><div class="logo-icon">🛡️</div><span>Awaaz Admin</span></a>
+  <div class="navbar-links">
+    <a href="/admin/dashboard">← Dashboard</a>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">🚪 Logout</button>
+  </div>
+</nav>
+
+<div class="container" style="padding-top:2rem; padding-bottom:4rem;" id="page-content">
+  <div style="text-align:center; padding:4rem;"><div class="spinner"></div><p style="margin-top:1rem; color:var(--text-muted);">Loading complaint…</p></div>
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+  const complaintId = location.pathname.split('/').pop().toUpperCase();
+  let complaint = null;
+
+  async function loadComplaint() {
+    try {
+      complaint = await apiGet(`/api/admin/complaint/${complaintId}`);
+      render();
+    } catch(e) {
+      if (e.message === 'Unauthorized') { location.href = '/admin'; return; }
+      document.getElementById('page-content').innerHTML = `
+        <div style="text-align:center;padding:4rem;">
+          <div style="font-size:3rem;margin-bottom:1rem;">❌</div>
+          <h2>Complaint Not Found</h2>
+          <p style="color:var(--text-muted);margin-top:.5rem;">ID: ${complaintId}</p>
+          <a href="/admin/dashboard" class="btn btn-primary" style="margin-top:1.5rem;">← Back to Dashboard</a>
+        </div>`;
+    }
+  }
+
+  function render() {
+    const c = complaint;
+    const proofImgs = (c.proof_images || []).map(f => `<img src="/uploads/${f}" alt="Proof" onclick="window.open(this.src)">`).join('');
+    const resImgs   = (c.resolution_images || []).map(f => `<img src="/uploads/${f}" alt="Resolution" onclick="window.open(this.src)">`).join('');
+    const logs      = (c.logs || []).map(l => `
+      <div class="log-entry">
+        <span class="log-hash">${l.block_hash.substring(0,10)}…</span>
+        <span class="log-action">${l.action.replace(/_/g,' ')} — ${fmtDate(l.timestamp)}</span>
+      </div>`).join('');
+    const mapUrl = c.location_lat && c.location_lon
+      ? `https://www.openstreetmap.org/?mlat=${c.location_lat}&mlon=${c.location_lon}#map=15/${c.location_lat}/${c.location_lon}`
+      : null;
+
+    document.getElementById('page-content').innerHTML = `
+      <a href="/admin/dashboard" class="back-btn">← Back to Dashboard</a>
+
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;">
+        <div>
+          <div style="font-size:.78rem; color:var(--text-muted); margin-bottom:.3rem;">COMPLAINT ID</div>
+          <div class="complaint-id-display" onclick="copyText('${c.id}')" title="Click to copy" style="cursor:pointer;">${c.id}</div>
+        </div>
+        <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;">
+          ${c.is_emergency ? '<span class="badge badge-emergency badge-dot">🚨 Emergency</span>' : '<span class="badge badge-normal badge-dot">⚡ Normal</span>'}
+          ${statusBadge(c.status)}
+        </div>
+      </div>
+
+      <div class="detail-layout">
+        <!-- Left: Info -->
+        <div style="display:flex; flex-direction:column; gap:1.25rem;">
+
+          <!-- Key info -->
+          <div class="card">
+            <div class="section-title">Complaint Information</div>
+            <div class="info-grid">
+              <div class="info-cell"><div class="label">📅 Filed</div><div class="value">${fmtDate(c.created_at)}</div></div>
+              <div class="info-cell"><div class="label">🌐 Language</div><div class="value">${c.language.toUpperCase()}</div></div>
+              <div class="info-cell" style="grid-column:span 2;">
+                <div class="label">📍 Location</div>
+                <div class="value">${c.location_name || 'Not provided'}
+                  ${mapUrl ? `<br><a href="${mapUrl}" target="_blank" class="map-link" style="margin-top:.3rem; display:inline-flex;">🗺️ View on Map</a>` : ''}
+                </div>
+              </div>
+              <div class="info-cell"><div class="label">👤 User</div><div class="value">${c.is_anonymous ? '<span class="anon-badge">🔒 Anonymous</span>' : (c.user_name || 'Not provided')}</div></div>
+              <div class="info-cell"><div class="label">📧 Email</div><div class="value">${c.is_anonymous ? '<span class="anon-badge">🔒 Hidden</span>' : (c.user_contact || '—')}</div></div>
+            </div>
+          </div>
+
+          <!-- Original & translated -->
+          <div class="card">
+            <div class="section-title">Original Complaint Text</div>
+            <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.9rem 1rem; font-size:.9rem; color:var(--text-secondary); margin-bottom:1rem; line-height:1.65;">${c.original_text || '—'}</div>
+            ${c.translated_text && c.translated_text !== c.original_text ? `
+            <div class="section-title">Translated to English</div>
+            <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.9rem 1rem; font-size:.9rem; color:var(--text-secondary); line-height:1.65;">${c.translated_text}</div>` : ''}
+          </div>
+
+          <!-- Formal letter -->
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.75rem; flex-wrap:wrap; gap:.5rem;">
+              <div class="section-title" style="margin:0;">📄 AI-Generated Formal Application</div>
+              <button class="btn btn-secondary btn-sm" onclick="copyText(document.getElementById('formal-letter').textContent)">📋 Copy</button>
+            </div>
+            <div class="letter-box" id="formal-letter">${c.formal_letter || 'Not available.'}</div>
+          </div>
+
+          <!-- Proof images -->
+          ${c.proof_images && c.proof_images.length ? `
+          <div class="card">
+            <div class="section-title">📷 User-Uploaded Proof</div>
+            <div class="image-grid">${proofImgs}</div>
+          </div>` : ''}
+
+          <!-- Resolution images -->
+          ${c.resolution_images && c.resolution_images.length ? `
+          <div class="card">
+            <div class="section-title">✅ Resolution Proof (Admin-uploaded)</div>
+            <div class="image-grid">${resImgs}</div>
+          </div>` : ''}
+
+          <!-- Blockchain log -->
+          <div class="card">
+            <div class="section-title">🔗 Blockchain Event Log</div>
+            <div class="hash-code" style="margin-bottom:.75rem;">${c.blockchain_hash || 'N/A'}</div>
+            <div>${logs || '<p style="color:var(--text-muted);font-size:.85rem;">No events logged yet.</p>'}</div>
+          </div>
+        </div>
+
+        <!-- Right: Admin actions -->
+        <div class="action-card">
+          <div class="card">
+            <div class="card-title">⚙️ Admin Actions</div>
+
+            <form id="update-form" enctype="multipart/form-data">
+              <div class="action-group">
+                <div class="action-group-label">Status</div>
+                <select id="upd-status" class="form-control status-select">
+                  <option value="received"    ${c.status==='received'    ?'selected':''}>📥 Received</option>
+                  <option value="assigned"    ${c.status==='assigned'    ?'selected':''}>🏢 Assigned</option>
+                  <option value="in_progress" ${c.status==='in_progress' ?'selected':''}>🔧 In Progress</option>
+                  <option value="resolved"    ${c.status==='resolved'    ?'selected':''}>✅ Resolved</option>
+                </select>
+              </div>
+
+              <div class="action-group">
+                <div class="action-group-label">Assign To</div>
+                <input type="text" id="upd-assigned" class="form-control" placeholder="NGO / Officer name" value="${c.assigned_to || ''}"/>
+              </div>
+
+              <div class="action-group">
+                <div class="action-group-label">Progress Flags</div>
+                <div class="check-row">
+                  <input type="checkbox" id="upd-response" ${c.response_submitted ? 'checked' : ''}/>
+                  <label for="upd-response">Response Submitted</label>
+                </div>
+                <div class="check-row">
+                  <input type="checkbox" id="upd-work" ${c.work_completed ? 'checked' : ''}/>
+                  <label for="upd-work">Work Completed</label>
+                </div>
+              </div>
+
+              <div class="action-group">
+                <div class="action-group-label">Upload Resolution Proof</div>
+                <div class="upload-zone" id="res-zone" style="padding:1.25rem;">
+                  <div class="upload-icon" style="font-size:1.5rem;">📷</div>
+                  <p style="font-size:.82rem;">Click or drag geo-tagged images here</p>
+                </div>
+                <div class="upload-previews" id="res-preview"></div>
+                <input type="file" id="res-input" multiple accept="image/*" style="display:none;"/>
+              </div>
+
+              <button type="submit" class="btn btn-success btn-block">💾 Save Changes</button>
+            </form>
+          </div>
+
+          <!-- Quick timeline -->
+          <div class="card" style="margin-top:1.25rem;">
+            <div class="card-title">📊 Status Timeline</div>
+            <div class="timeline" id="quick-timeline"></div>
+          </div>
+        </div>
+      </div>`;
+
+    // Render timeline
+    document.getElementById('quick-timeline').innerHTML = buildTimeline(c.status, c.logs || []);
+
+    // Upload zone
+    initUploadZone('res-zone', 'res-input', 'res-preview');
+
+    // Submit handler
+    document.getElementById('update-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = e.target.querySelector('button[type=submit]');
+      btn.disabled = true; btn.textContent = '⏳ Saving…';
+      try {
+        const fd = new FormData();
+        fd.append('status',             document.getElementById('upd-status').value);
+        fd.append('assigned_to',        document.getElementById('upd-assigned').value);
+        fd.append('response_submitted', document.getElementById('upd-response').checked ? 'true' : 'false');
+        fd.append('work_completed',     document.getElementById('upd-work').checked ? 'true' : 'false');
+        const inp = document.getElementById('res-input');
+        if (inp.files) for (const f of inp.files) fd.append('resolution_images', f);
+        await apiPost(`/api/admin/update/${complaintId}`, fd, true);
+        showToast('Complaint updated successfully!', 'success');
+        setTimeout(() => loadComplaint(), 800);
+      } catch(err) {
+        showToast('Update failed: ' + err.message, 'error');
+      }
+      btn.disabled = false; btn.textContent = '💾 Save Changes';
+    });
+  }
+
+  async function logout() {
+    try { await apiPost('/api/admin/logout', {}); } catch(_) {}
+    location.href = '/admin';
+  }
+
+  loadComplaint();
+</script>
+</body>
+</html>

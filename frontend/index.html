@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Awaaz — Smart Grievance Redressal Platform</title>
+  <meta name="description" content="Submit complaints in your local language using voice or text. Track resolution transparently with blockchain-backed records."/>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <style>
+    .hero-visual {
+      position: absolute; right: -60px; top: 50%; transform: translateY(-50%);
+      font-size: 16rem; opacity: .04; pointer-events: none; user-select: none;
+      animation: float 6s ease-in-out infinite;
+    }
+    .trust-bar {
+      background: rgba(255,255,255,0.03); border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border); padding: 1.25rem 0;
+    }
+    .trust-bar-inner {
+      display: flex; align-items: center; justify-content: center;
+      flex-wrap: wrap; gap: 2.5rem;
+    }
+    .trust-item { display: flex; align-items: center; gap: .6rem; font-size: .9rem; color: var(--text-secondary); }
+    .trust-item span { font-size: 1.2rem; }
+    .how-it-works-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 2.5rem; }
+    .step-card {
+      text-align: center; padding: 2rem 1.5rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); position: relative;
+    }
+    .step-num {
+      position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--accent-grad); color: #fff;
+      font-weight: 800; font-size: .85rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-icon { font-size: 2.5rem; margin: .5rem 0 1rem; }
+    .step-title { font-weight: 700; margin-bottom: .4rem; }
+    .step-desc { font-size: .85rem; color: var(--text-secondary); }
+    .cta-section {
+      text-align: center; padding: 5rem 2rem;
+      background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(108,99,255,0.08) 0%, transparent 70%);
+    }
+    .cta-section h2 { font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 800; margin-bottom: 1rem; }
+    .cta-section p { color: var(--text-secondary); margin-bottom: 2rem; }
+    .live-stats {
+      display: flex; justify-content: center; gap: 3rem; flex-wrap: wrap;
+      margin: 3rem 0 0;
+    }
+    .live-stat .value { font-size: 2.8rem; font-weight: 800; background: var(--accent-grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .live-stat .label { font-size: .85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+    footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; color: var(--text-muted); font-size: .85rem; }
+    /* ── Auth gate ── */
+    #auth-gate {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--bg-primary);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1rem;
+      transition: opacity .35s ease;
+    }
+    #auth-gate.fade-out { opacity: 0; pointer-events: none; }
+    #page-body { visibility: hidden; }
+    #page-body.visible { visibility: visible; }
+  </style>
+</head>
+<body>
+<!-- Auth Gate Overlay -->
+<div id="auth-gate">
+  <div class="logo-icon" style="width:68px;height:68px;border-radius:20px;background:var(--accent-grad);font-size:2.2rem;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 32px rgba(108,99,255,.4);margin-bottom:.25rem;">🗣️</div>
+  <div style="font-size:1.1rem;font-weight:800;color:var(--text-primary);">Awaaz</div>
+  <p style="font-size:.82rem;color:var(--text-muted);">Smart Grievance Redressal Platform</p>
+  <div class="spinner" style="margin-top:.5rem;"></div>
+  <p style="font-size:.82rem;color:var(--text-muted);">Checking your session…</p>
+</div>
+
+<div id="page-body">
+<div class="bg-mesh"></div>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="/" class="navbar-brand">
+    <div class="logo-icon">🗣️</div>
+    <span>Awaaz</span>
+  </a>
+  <div class="navbar-links">
+    <a href="/submit" style="display:flex;align-items:center;gap:.35rem;">
+      <span style="font-size:1.15rem">📝</span> File Complaint
+    </a>
+    <a href="/track" style="display:flex;align-items:center;gap:.35rem;">
+      <span style="font-size:1.15rem">🔍</span> Track Status
+    </a>
+    <div id="nav-user-area" style="display:flex;align-items:center;gap:.6rem;"></div>
+    <a href="/admin" style="display:flex;align-items:center;gap:.35rem;">
+      <span style="font-size:1.15rem">🛡️</span> Admin
+    </a>
+    <a href="/submit" class="btn btn-primary btn-sm" style="display:flex;align-items:center;gap:.35rem;">
+      <span style="font-size:1.1rem;">✨</span> Get Started
+    </a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero container">
+  <div class="hero-content">
+    <div class="hero-eyebrow fade-up fade-up-1">🛡️ Trusted · Transparent · Tamper-proof</div>
+    <h1 class="fade-up fade-up-2">
+      Your Voice<br>
+      <span class="gradient-text">Deserves to be Heard</span>
+    </h1>
+    <p class="fade-up fade-up-3">
+      Submit complaints in your local language using voice or text. Track resolution like a package delivery. Every record is blockchain-secured — no manipulation, no silence.
+    </p>
+    <div class="hero-actions fade-up fade-up-4">
+      <a href="/submit" class="btn btn-primary btn-lg">🎤 File a Complaint</a>
+      <a href="/track" class="btn btn-secondary btn-lg">📦 Track My Complaint</a>
+    </div>
+  </div>
+  <div class="hero-visual" aria-hidden="true">📣</div>
+</section>
+
+<!-- Trust bar -->
+<div class="trust-bar">
+  <div class="trust-bar-inner container">
+    <div class="trust-item"><span>🌐</span> 10+ Indian Languages</div>
+    <div class="trust-item"><span>🎤</span> Voice Input Supported</div>
+    <div class="trust-item"><span>🔗</span> Blockchain-secured Records</div>
+    <div class="trust-item"><span>🔒</span> Anonymous by Default</div>
+    <div class="trust-item"><span>📍</span> Location-aware Routing</div>
+  </div>
+</div>
+
+<!-- Features -->
+<section class="section container">
+  <div class="section-header">
+    <h2>Everything You Need to Be Heard</h2>
+    <p>Designed for accessibility — works for everyone, regardless of literacy level.</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🎤</div>
+      <div class="feature-title">Voice in Your Language</div>
+      <div class="feature-desc">Speak in Hindi, Tamil, Telugu, Malayalam, Bengali and more. Our AI converts it to a formal English application automatically.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🤖</div>
+      <div class="feature-title">AI-Powered Formal Letter</div>
+      <div class="feature-desc">Your raw complaint is transformed into a professional application letter — ready for authorities without any editing needed.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📦</div>
+      <div class="feature-title">Real-time Tracking</div>
+      <div class="feature-desc">Track your complaint like a package — see every status update from Received to Resolved with timestamps and proof.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔗</div>
+      <div class="feature-title">Tamper-proof Records</div>
+      <div class="feature-desc">Every complaint and update is logged in a cryptographic hash chain. No one can alter or erase your complaint.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🚨</div>
+      <div class="feature-title">Emergency Priority</div>
+      <div class="feature-desc">Mark urgent issues as emergency. They are flagged at the top of every admin's queue for immediate action.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <div class="feature-title">Full Anonymity</div>
+      <div class="feature-desc">Your identity is hidden by default. Share your details only if you choose to — ensuring your safety at all times.</div>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section class="section" style="background: rgba(255,255,255,0.02); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="container">
+    <div class="section-header">
+      <h2>How It Works</h2>
+      <p>Four simple steps from complaint to resolution.</p>
+    </div>
+    <div class="how-it-works-steps">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <div class="step-icon">🎤</div>
+        <div class="step-title">Speak or Type</div>
+        <div class="step-desc">Share your complaint in any language — voice or text, with optional photo proof.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <div class="step-icon">🤖</div>
+        <div class="step-title">AI Processes It</div>
+        <div class="step-desc">Translation + formal letter generation happens instantly. Your location routes it to the right authority.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <div class="step-icon">🆔</div>
+        <div class="step-title">Get Your ID</div>
+        <div class="step-desc">Receive a unique Complaint ID — your tracking key for the entire resolution journey.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">4</div>
+        <div class="step-icon">✅</div>
+        <div class="step-title">Track to Resolution</div>
+        <div class="step-desc">Follow every update. Admin uploads geo-tagged proof when work is done.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA + Live stats -->
+<section class="cta-section">
+  <div class="container">
+    <h2>Ready to File Your Complaint?</h2>
+    <p>Join thousands who have used Awaaz to get their issues heard and resolved.</p>
+    <a href="/submit" class="btn btn-primary btn-lg">🗣️ Start Now — It's Free</a>
+    <div class="live-stats" id="live-stats">
+      <div class="live-stat"><div class="value" id="stat-total">–</div><div class="label">Complaints Filed</div></div>
+      <div class="live-stat"><div class="value" id="stat-resolved">–</div><div class="label">Resolved</div></div>
+      <div class="live-stat"><div class="value" id="stat-emergency">–</div><div class="label">Emergency Cases</div></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>© 2024 Awaaz — Smart Grievance Redressal Platform &nbsp;·&nbsp; Built for vulnerable communities &nbsp;·&nbsp; <a href="/admin" style="color:var(--accent);">Admin Portal</a></p>
+</footer>
+
+<script src="/static/app.js"></script>
+<script>
+  (async () => {
+    // ★ Auth check — redirect to login if not logged in
+    let me;
+    try { me = await apiGet('/api/user/me'); } catch(_) { me = {logged_in: false}; }
+
+    if (!me.logged_in) {
+      location.href = '/login?next=/';
+      return;
+    }
+
+    // Logged in — reveal the page
+    const gate = document.getElementById('auth-gate');
+    const body = document.getElementById('page-body');
+    body.classList.add('visible');
+    gate.classList.add('fade-out');
+    setTimeout(() => gate.remove(), 400);
+
+    // Show user name + logout in navbar
+    const nav = document.getElementById('nav-user-area');
+    nav.innerHTML = `
+      <span style="font-size:.88rem;color:var(--success);font-weight:600;">👤 ${me.name}</span>
+      <button class="btn btn-secondary btn-sm" onclick="doLogout()">🚪 Logout</button>
+    `;
+
+    // Load live stats
+    try {
+      const s = await apiGet('/api/stats');
+      document.getElementById('stat-total').textContent     = s.total;
+      document.getElementById('stat-resolved').textContent  = s.resolved;
+      document.getElementById('stat-emergency').textContent = s.emergency;
+    } catch(_) {}
+  })();
+
+  async function doLogout() {
+    try { await apiPost('/api/user/logout', {}); } catch(_) {}
+    location.href = '/login?next=/';
+  }
+</script>
+</div><!-- /page-body -->
+</body>
+</html>

@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>File a Complaint — Awaaz</title>
+  <meta name="description" content="Submit your complaint using voice or text in your local language. Upload proof and get a unique tracking ID."/>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <style>
+    .submit-layout { display: grid; grid-template-columns: 1fr 380px; gap: 1.5rem; align-items: start; }
+    @media(max-width:900px){ .submit-layout { grid-template-columns: 1fr; } }
+    .voice-row { display: flex; align-items: flex-start; gap: 1rem; }
+    .voice-row textarea { flex: 1; }
+    .lang-select-group { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+    .lang-select-group label { font-size: .85rem; color: var(--text-secondary); font-weight: 600; }
+    .recording-indicator {
+      display: none; align-items: center; gap: .5rem;
+      color: var(--emergency); font-size: .85rem; font-weight: 600;
+      animation: emergency-pulse 1s infinite;
+    }
+    .recording-indicator.visible { display: flex; }
+    .recording-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--emergency); animation: pulse-ring 1s infinite; }
+    .privacy-toggle { display: flex; align-items: center; gap: .75rem; cursor: pointer; user-select: none; }
+    .privacy-toggle input[type=checkbox] { display: none; }
+    .toggle-track {
+      width: 44px; height: 24px; border-radius: 12px;
+      background: var(--border); position: relative; transition: background .2s; flex-shrink: 0;
+    }
+    .toggle-track::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #fff; transition: transform .2s;
+    }
+    input[type=checkbox]:checked + .toggle-track { background: var(--accent); }
+    input[type=checkbox]:checked + .toggle-track::after { transform: translateX(20px); }
+    .identity-fields { display: none; }
+    .identity-fields.visible { display: block; animation: fade-up .3s ease; }
+    .sidebar-card { position: sticky; top: 80px; }
+    .tip-item { display: flex; gap: .75rem; padding: .75rem 0; border-bottom: 1px solid var(--border); }
+    .tip-item:last-child { border-bottom: none; }
+    .tip-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: .1rem; }
+    .tip-text { font-size: .85rem; color: var(--text-secondary); }
+    .tip-text strong { color: var(--text-primary); display: block; margin-bottom: .15rem; }
+    .loc-status { font-size: .82rem; color: var(--text-muted); margin-top: .4rem; display: flex; align-items: center; gap: .4rem; }
+    .loc-status.ok { color: var(--success); }
+    .loc-status.err { color: var(--emergency); }
+
+    /* ── Auth gate: hides page until session confirmed ── */
+    #auth-gate {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--bg-primary);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1rem;
+      transition: opacity .35s ease;
+    }
+    #auth-gate.fade-out { opacity: 0; pointer-events: none; }
+    #page-body { visibility: hidden; }
+    #page-body.visible { visibility: visible; }
+  </style>
+</head>
+<body>
+<!-- Auth Gate Overlay (removed after session check) -->
+<div id="auth-gate">
+  <div class="logo-icon" style="width:64px;height:64px;border-radius:20px;background:var(--accent-grad);font-size:2rem;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 32px rgba(108,99,255,.4);">🗣️</div>
+  <div style="font-size:1rem;font-weight:700;color:var(--text-primary);">Awaaz</div>
+  <div class="spinner"></div>
+  <p style="font-size:.85rem;color:var(--text-muted);margin-top:.5rem;">Checking your session…</p>
+</div>
+
+<div id="page-body">
+<div class="bg-mesh"></div>
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a href="/" class="navbar-brand"><div class="logo-icon">🗣️</div><span>Awaaz</span></a>
+  <div class="navbar-links">
+    <a href="/" style="display:flex;align-items:center;gap:.35rem;"><span style="font-size:1.15rem">🏠</span> Home</a>
+    <a href="/track" style="display:flex;align-items:center;gap:.35rem;"><span style="font-size:1.15rem">🔍</span> Track</a>
+    <div id="nav-user-area" style="display:flex; align-items:center; gap:.6rem;"></div>
+    <a href="/admin" style="display:flex;align-items:center;gap:.35rem;"><span style="font-size:1.15rem">🛡️</span> Admin</a>
+  </div>
+</nav>
+
+<div class="container" style="padding-top:2rem; padding-bottom:4rem;">
+  <div class="page-header">
+    <h1>📝 File a Complaint</h1>
+    <p>Speak or type in your language. We'll translate and create a formal letter automatically.</p>
+  </div>
+
+  <form id="complaint-form" novalidate>
+    <div class="submit-layout">
+
+      <!-- LEFT: Main form -->
+      <div>
+        <!-- Step 1: Language + Voice/Text -->
+        <div class="card" style="margin-bottom:1.25rem;">
+          <div class="card-title" style="font-size:1.05rem;">
+            <span style="font-size:1.6rem;vertical-align:middle;margin-right:.4rem;">💬</span>
+            Step 1 — <strong>Describe Your Complaint</strong>
+          </div>
+
+          <div class="lang-select-group">
+            <label for="language">🌐 Language:</label>
+            <select id="language" class="form-control" style="width:auto; min-width:160px;">
+              <option value="en">English</option>
+              <option value="hi">हिन्दी (Hindi)</option>
+              <option value="ta">தமிழ் (Tamil)</option>
+              <option value="te">తెలుగు (Telugu)</option>
+              <option value="kn">ಕನ್ನಡ (Kannada)</option>
+              <option value="ml">മലയാളം (Malayalam)</option>
+              <option value="bn">বাংলা (Bengali)</option>
+              <option value="mr">मराठी (Marathi)</option>
+              <option value="gu">ગુજરાતી (Gujarati)</option>
+              <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+              <option value="or">ଓଡ଼ିଆ (Odia)</option>
+            </select>
+            <div class="recording-indicator" id="rec-indicator">
+              <div class="recording-dot"></div> Recording…
+            </div>
+          </div>
+
+          <div class="voice-row">
+            <textarea id="complaint-text" class="form-control" rows="6"
+              placeholder="Describe your issue here, or press the mic button to speak…" required></textarea>
+            <button type="button" class="voice-btn" id="voice-btn" title="Start voice input">🎤</button>
+          </div>
+          <div id="voice-not-supported" style="display:none; margin-top:.5rem; font-size:.82rem; color:var(--text-muted);">
+            ⚠️ Voice input not supported in this browser. Please type your complaint.
+          </div>
+          <div style="margin-top:.75rem; font-size:.82rem; color:var(--text-muted);">
+            Characters: <span id="char-count">0</span> &nbsp;·&nbsp; Minimum 20 characters required.
+          </div>
+        </div>
+
+        <!-- Step 2: Priority -->
+        <div class="card" style="margin-bottom:1.25rem;">
+          <div class="card-title" style="font-size:1.05rem;">
+            <span style="font-size:1.6rem;vertical-align:middle;margin-right:.4rem;">🚨</span>
+            Step 2 — <strong>Complaint Priority</strong>
+          </div>
+          <p style="font-size:.88rem; color:var(--text-secondary); margin-bottom:1rem;">
+            Emergency complaints are shown at the top and get priority handling.
+          </p>
+          <div class="toggle-group">
+            <div class="toggle-option active-normal" id="opt-normal" onclick="setPriority(false)">⚡ Normal</div>
+            <div class="toggle-option" id="opt-emergency" onclick="setPriority(true)">🚨 Emergency</div>
+          </div>
+          <input type="hidden" id="is-emergency" value="false"/>
+        </div>
+
+        <!-- Step 3: Location -->
+        <div class="card" style="margin-bottom:1.25rem;">
+          <div class="card-title" style="font-size:1.05rem;">
+            <span style="font-size:1.6rem;vertical-align:middle;margin-right:.4rem;">📍</span>
+            Step 3 — <strong>Your Location</strong>
+          </div>
+          <button type="button" class="btn btn-secondary" id="detect-loc-btn" onclick="detectLocation()"
+                  style="font-size:1rem;padding:.65rem 1.25rem;display:flex;align-items:center;gap:.5rem;">
+            <span style="font-size:1.4rem;">📍</span> Detect My Location
+          </button>
+          <div id="loc-status" class="loc-status">Location not yet detected.</div>
+          <input type="hidden" id="loc-lat"/>
+          <input type="hidden" id="loc-lon"/>
+          <input type="hidden" id="loc-name"/>
+          <div class="form-group" style="margin-top:1rem; margin-bottom:0;">
+            <label class="form-label" for="loc-manual">
+              <span style="font-size:1.1rem;">✏️</span> Or describe location manually
+            </label>
+            <input type="text" id="loc-manual" class="form-control" placeholder="Village, District, State…"/>
+          </div>
+        </div>
+
+        <!-- Step 4: Proof images -->
+        <div class="card" style="margin-bottom:1.25rem;">
+          <div class="card-title" style="font-size:1.05rem;">
+            <span style="font-size:1.6rem;vertical-align:middle;margin-right:.4rem;">📷</span>
+            Step 4 — <strong>Upload Proof Photos</strong> <span style="font-size:.78rem;font-weight:400;color:var(--text-muted);">(Optional)</span>
+          </div>
+          <div class="upload-zone" id="proof-zone">
+            <div class="upload-icon" style="font-size:3rem;">📸</div>
+            <p>Tap to take a photo, or <strong>choose from gallery</strong></p>
+            <p style="font-size:.78rem; margin-top:.3rem; color:var(--text-muted);">PNG, JPG, WEBP — max 20 MB total</p>
+          </div>
+          <div class="upload-previews" id="proof-preview"></div>
+          <input type="file" id="proof-input" multiple accept="image/*" style="display:none;"/>
+        </div>
+
+        <!-- Step 5: Privacy + Identity -->
+        <div class="card" style="margin-bottom:1.25rem;">
+          <div class="card-title" style="font-size:1.05rem;">
+            <span style="font-size:1.6rem;vertical-align:middle;margin-right:.4rem;">🔒</span>
+            Step 5 — <strong>Your Identity</strong>
+          </div>
+
+          <!-- Logged-in user banner -->
+          <div id="logged-in-banner" style="margin-bottom:1rem;">
+            <div style="display:flex; align-items:center; gap:.75rem; padding:.75rem 1rem;
+                        background:rgba(0,209,160,0.08); border:1px solid rgba(0,209,160,0.25);
+                        border-radius:var(--radius-sm);">
+              <span style="font-size:1.4rem;">👤</span>
+              <div style="flex:1;">
+                <div style="font-weight:700; font-size:.92rem;" id="loggedin-name">—</div>
+                <div style="font-size:.8rem; color:var(--text-muted);" id="loggedin-email">—</div>
+              </div>
+            </div>
+            <p style="font-size:.8rem; color:var(--text-muted); margin-top:.5rem;">
+              Logged in via OTP. Toggle below to choose whether to share your identity with the admin.
+            </p>
+          </div>
+
+          <label class="privacy-toggle">
+            <input type="checkbox" id="anon-check" checked onchange="toggleAnon()"/>
+            <div class="toggle-track"></div>
+            <span style="font-size:.95rem;">
+              <span style="font-size:1.2rem;">🕵️</span> Stay <strong>anonymous</strong>
+              <span style="font-size:.8rem; color:var(--text-muted);"> (identity hidden from admin)</span>
+            </span>
+          </label>
+          <p style="font-size:.85rem; color:var(--text-muted); margin-top:.75rem;" id="anon-hint">
+            🔒 Your identity will <strong>NOT</strong> be shown to any admin or NGO.
+          </p>
+
+          <!-- Manual fields shown when: not logged in + anonymous OFF -->
+          <div class="identity-fields" id="identity-fields" style="margin-top:1rem;">
+            <div id="manual-id-fields">
+              <div class="form-group">
+                <label class="form-label" for="user-name">
+                  <span style="font-size:1.1rem;">👤</span> Your Name
+                </label>
+                <input type="text" id="user-name" class="form-control" placeholder="Full name"/>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label" for="user-contact">
+                  <span style="font-size:1.1rem;">📞</span> Phone / Email
+                </label>
+                <input type="text" id="user-contact" class="form-control" placeholder="Phone number or email"/>
+              </div>
+            </div>
+            <!-- When logged in, manual fields are hidden (session used automatically) -->
+            <div id="loggedin-id-note" style="display:none; font-size:.85rem; color:var(--success);">
+              ✅ Your verified name and phone number will be attached to this complaint.
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="submit-btn"
+                style="font-size:1.1rem; padding:1rem; display:flex; align-items:center; justify-content:center; gap:.6rem;">
+          <span style="font-size:1.8rem;">🚀</span>
+          <span>Submit Complaint</span>
+        </button>
+      </div>
+
+      <!-- RIGHT: Sidebar tips -->
+      <div class="sidebar-card">
+        <div class="card">
+          <div class="card-title">💡 Tips</div>
+          <div class="tip-item">
+            <div class="tip-icon">🎤</div>
+            <div class="tip-text"><strong>Voice Input</strong>Press the mic button and speak in your language. Speak clearly and pause when done.</div>
+          </div>
+          <div class="tip-item">
+            <div class="tip-icon">📷</div>
+            <div class="tip-text"><strong>Upload Proof</strong>Photos of the issue (broken road, dirty water, etc.) help authorities respond faster.</div>
+          </div>
+          <div class="tip-item">
+            <div class="tip-icon">📍</div>
+            <div class="tip-text"><strong>Share Location</strong>Accurate location helps route your complaint to the nearest NGO or officer.</div>
+          </div>
+          <div class="tip-item">
+            <div class="tip-icon">🆔</div>
+            <div class="tip-text"><strong>Save Your ID</strong>After submission, save your Complaint ID. Use it to track progress anytime.</div>
+          </div>
+          <div class="tip-item">
+            <div class="tip-icon">🔒</div>
+            <div class="tip-text"><strong>Stay Safe</strong>Anonymity is on by default. Only share identity if you're comfortable.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Success Modal -->
+<div class="modal-overlay hidden" id="success-modal">
+  <div class="modal-box">
+    <div class="modal-icon">🎉</div>
+    <h2>Complaint Submitted!</h2>
+    <p>Your complaint has been registered and will be routed to the nearest authority. Save your Complaint ID to track progress.</p>
+    <div style="margin: 1rem 0 1.5rem;">
+      <div style="font-size:.78rem; color:var(--text-muted); margin-bottom:.4rem;">YOUR COMPLAINT ID</div>
+      <div class="complaint-id-display" id="success-cid" onclick="copyText(this.textContent)" title="Click to copy" style="cursor:pointer;"></div>
+    </div>
+    <div style="display:flex; gap:.75rem; justify-content:center; flex-wrap:wrap;">
+      <a href="/track" class="btn btn-primary" id="track-btn">📦 Track My Complaint</a>
+      <button class="btn btn-secondary" onclick="location.href='/'">🏠 Go Home</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+<script src="/static/voice.js"></script>
+<script>
+  // ── Voice ──────────────────────────────────────────────────────────────────
+  let accumulated = '';
+  const voice = new VoiceRecorder({
+    onInterim: t => {
+      document.getElementById('complaint-text').value = accumulated + t;
+      updateCharCount();
+    },
+    onFinal: t => {
+      accumulated += t + ' ';
+      document.getElementById('complaint-text').value = accumulated.trim();
+      updateCharCount();
+    },
+    onError: e => showToast('Voice error: ' + e, 'error'),
+    onStop: () => setVoiceBtn(false)
+  });
+
+  if (!voice.supported) {
+    document.getElementById('voice-not-supported').style.display = 'block';
+    document.getElementById('voice-btn').style.display = 'none';
+  }
+
+  document.getElementById('voice-btn').addEventListener('click', () => {
+    const lang = document.getElementById('language').value;
+    const on = voice.toggle(lang);
+    setVoiceBtn(on);
+    if (on) accumulated = document.getElementById('complaint-text').value + ' ';
+  });
+
+  function setVoiceBtn(on) {
+    const btn = document.getElementById('voice-btn');
+    const ind = document.getElementById('rec-indicator');
+    btn.textContent = on ? '⏹️' : '🎤';
+    btn.classList.toggle('recording', on);
+    ind.classList.toggle('visible', on);
+  }
+
+  document.getElementById('complaint-text').addEventListener('input', updateCharCount);
+  function updateCharCount() {
+    document.getElementById('char-count').textContent = document.getElementById('complaint-text').value.length;
+  }
+
+  // ── Priority toggle ────────────────────────────────────────────────────────
+  function setPriority(isEmergency) {
+    document.getElementById('is-emergency').value = isEmergency;
+    document.getElementById('opt-normal').className    = 'toggle-option' + (isEmergency ? '' : ' active-normal');
+    document.getElementById('opt-emergency').className = 'toggle-option' + (isEmergency ? ' active-emergency' : '');
+  }
+
+  // ── Location ───────────────────────────────────────────────────────────────
+  async function detectLocation() {
+    const btn = document.getElementById('detect-loc-btn');
+    const status = document.getElementById('loc-status');
+    btn.disabled = true; btn.textContent = '⏳ Detecting…';
+    status.className = 'loc-status';
+    status.textContent = 'Getting your location…';
+    try {
+      const loc = await getLocation();
+      document.getElementById('loc-lat').value  = loc.lat;
+      document.getElementById('loc-lon').value  = loc.lon;
+      document.getElementById('loc-name').value = loc.name;
+      status.className = 'loc-status ok';
+      status.textContent = '✅ ' + loc.name.substring(0, 120);
+      showToast('Location detected!', 'success');
+    } catch(e) {
+      status.className = 'loc-status err';
+      status.textContent = '❌ Could not detect location. Please enter manually.';
+      showToast('Location error: ' + e.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = '📍 Detect My Location';
+  }
+
+  // ── User session state ─────────────────────────────────────────────────────
+  let currentUser = null;
+
+  async function loadUserState() {
+    try {
+      const me = await apiGet('/api/user/me');
+      currentUser = me.logged_in ? me : null;
+    } catch(_) { currentUser = null; }
+
+    if (!currentUser) {
+      // Not logged in — redirect immediately (gate stays visible)
+      location.href = '/login?next=/submit';
+      return;
+    }
+
+    // Logged in — reveal the page
+    const gate = document.getElementById('auth-gate');
+    const body = document.getElementById('page-body');
+    body.classList.add('visible');
+    gate.classList.add('fade-out');
+    setTimeout(() => gate.remove(), 400);
+
+    // Show user in navbar with logout button
+    const navArea = document.getElementById('nav-user-area');
+    navArea.innerHTML = `
+      <span style="font-size:.88rem; color:var(--success); font-weight:600;">👤 ${currentUser.name}</span>
+      <button class="btn btn-secondary btn-sm" onclick="doUserLogout()">🚪 Logout</button>
+    `;
+
+    // Show logged-in banner in Step 5
+    document.getElementById('logged-in-banner').style.display = 'block';
+    document.getElementById('loggedin-name').textContent  = currentUser.name;
+    document.getElementById('loggedin-email').textContent = currentUser.email;
+  }
+
+  async function doUserLogout() {
+    await apiPost('/api/user/logout', {});
+    showToast('Logged out. Redirecting to login…', 'info');
+    setTimeout(() => location.href = '/login?next=/submit', 800);
+  }
+
+  // ── Anon toggle ────────────────────────────────────────────────────────────
+  function toggleAnon() {
+    const isAnon = document.getElementById('anon-check').checked;
+    document.getElementById('identity-fields').classList.toggle('visible', !isAnon);
+    if (!isAnon) {
+      // User is always logged in here — use verified identity
+      document.getElementById('manual-id-fields').style.display = 'none';
+      document.getElementById('loggedin-id-note').style.display = 'block';
+      document.getElementById('anon-hint').textContent =
+        '✅ Your verified name and email will be shared with the admin.';
+    } else {
+      document.getElementById('anon-hint').textContent =
+        '🔒 Your identity will NOT be shown to any admin or NGO by default.';
+    }
+  }
+
+  // ── Upload zone ────────────────────────────────────────────────────────────
+  initUploadZone('proof-zone', 'proof-input', 'proof-preview');
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
+  document.getElementById('complaint-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const text = document.getElementById('complaint-text').value.trim();
+    if (text.length < 20) { showToast('Please describe your complaint (at least 20 characters).', 'error'); return; }
+
+    voice.stop();
+    showLoader('Translating & generating formal letter…');
+
+    const fd = new FormData();
+    fd.append('text',         text);
+    fd.append('language',     document.getElementById('language').value);
+    fd.append('is_emergency', document.getElementById('is-emergency').value);
+    const isAnon = document.getElementById('anon-check').checked;
+    fd.append('is_anonymous', isAnon ? 'true' : 'false');
+    // Manual fields only used when not logged in and not anonymous
+    if (!isAnon && !currentUser) {
+      fd.append('user_name',    document.getElementById('user-name').value);
+      fd.append('user_contact', document.getElementById('user-contact').value);
+    }
+
+    const locName = document.getElementById('loc-name').value || document.getElementById('loc-manual').value || 'Not provided';
+    fd.append('location_lat',  document.getElementById('loc-lat').value);
+    fd.append('location_lon',  document.getElementById('loc-lon').value);
+    fd.append('location_name', locName);
+
+    // Attach image files from previews
+    const input = document.getElementById('proof-input');
+    if (input.files) for (const f of input.files) fd.append('proof_images', f);
+
+    try {
+      const res = await apiPost('/api/submit', fd, true);
+      hideLoader();
+      document.getElementById('success-cid').textContent = res.complaint_id;
+      document.getElementById('track-btn').href = `/track?id=${res.complaint_id}`;
+      document.getElementById('success-modal').classList.remove('hidden');
+    } catch(err) {
+      hideLoader();
+      showToast('Submission failed: ' + err.message, 'error');
+    }
+  });
+
+  // Init on page load
+  loadUserState();
+</script>
+</div><!-- /page-body -->
+</body>
+</html>

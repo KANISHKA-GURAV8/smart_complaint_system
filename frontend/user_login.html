@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login — Awaaz</title>
+  <meta name="description" content="Login to Awaaz using your name and email with OTP verification."/>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <style>
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:1.5rem; }
+    .login-wrap { width:100%; max-width:440px; }
+    .login-logo { text-align:center; margin-bottom:2rem; }
+    .login-logo .logo-icon { width:60px; height:60px; border-radius:18px; background:var(--accent-grad); font-size:2rem; display:flex; align-items:center; justify-content:center; margin:0 auto .75rem; box-shadow:0 8px 24px rgba(108,99,255,0.35); }
+    .login-logo h1 { font-size:1.6rem; font-weight:800; margin-bottom:.25rem; }
+    .login-logo p  { font-size:.88rem; color:var(--text-secondary); }
+
+    .steps { display:flex; gap:0; margin-bottom:2rem; }
+    .step-dot { flex:1; text-align:center; position:relative; padding-bottom:.75rem; font-size:.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.05em; }
+    .step-dot::after { content:''; position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:28px; height:4px; border-radius:2px; background:var(--border); transition:background .3s; }
+    .step-dot.active { color:var(--accent); }
+    .step-dot.active::after { background:var(--accent); }
+    .step-dot.done { color:var(--success); }
+    .step-dot.done::after { background:var(--success); }
+
+    .step-panel { display:none; animation:fade-up .35s ease; }
+    .step-panel.visible { display:block; }
+
+    /* OTP input */
+    .otp-row { display:flex; gap:.6rem; justify-content:center; margin:1.5rem 0; }
+    .otp-cell { width:50px; height:58px; text-align:center; font-size:1.5rem; font-weight:700; font-family:'JetBrains Mono',monospace; background:rgba(255,255,255,0.05); border:1.5px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); outline:none; transition:border-color .2s, box-shadow .2s; }
+    .otp-cell:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(108,99,255,0.15); }
+
+    /* Email sent banner */
+    .email-sent-banner {
+      display:flex; align-items:flex-start; gap:.75rem;
+      padding:.9rem 1rem; border-radius:var(--radius-sm);
+      background:rgba(0,209,160,0.08); border:1px solid rgba(0,209,160,0.25);
+      font-size:.88rem; margin-bottom:1.25rem;
+    }
+    .email-sent-banner .icon { font-size:1.4rem; flex-shrink:0; }
+    .email-sent-banner strong { color:var(--success); display:block; margin-bottom:.15rem; }
+    .email-sent-banner span { color:var(--text-secondary); }
+
+
+
+
+    .timer { font-size:.82rem; color:var(--text-muted); text-align:center; margin-top:.4rem; }
+    .timer span { color:var(--accent); font-weight:600; }
+    .resend-btn { background:none; border:none; color:var(--accent); font-size:.85rem; font-weight:600; cursor:pointer; }
+    .resend-btn:disabled { color:var(--text-muted); cursor:not-allowed; }
+
+    .success-icon { font-size:4rem; text-align:center; margin-bottom:.75rem; animation:pop-in .4s cubic-bezier(.34,1.56,.64,1); }
+  </style>
+</head>
+<body>
+<div class="bg-mesh"></div>
+
+<div class="login-wrap">
+  <div class="login-logo">
+    <div class="logo-icon">🗣️</div>
+    <h1>Welcome to Awaaz</h1>
+    <p>Login with your name & email to file verified complaints.</p>
+  </div>
+
+  <div class="steps">
+    <div class="step-dot active" id="sdot-1">1. Your Details</div>
+    <div class="step-dot" id="sdot-2">2. Verify OTP</div>
+    <div class="step-dot" id="sdot-3">3. Done!</div>
+  </div>
+
+  <div class="card" style="padding:2rem;">
+
+    <!-- Step 1: Name + Email -->
+    <div class="step-panel visible" id="step1">
+      <h2 style="font-size:1.15rem; margin-bottom:.25rem;">Enter Your Details</h2>
+      <p style="font-size:.85rem; color:var(--text-secondary); margin-bottom:1.5rem;">
+        We'll send a 6-digit OTP to your email address to verify your identity.
+      </p>
+      <form id="form-step1" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="inp-name">Full Name</label>
+          <input type="text" id="inp-name" class="form-control" placeholder="e.g. Ravi Kumar" required autocomplete="name"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="inp-email">Email Address</label>
+          <input type="email" id="inp-email" class="form-control" placeholder="yourname@gmail.com" required autocomplete="email"/>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-send-otp">
+          📧 Send OTP to Email
+        </button>
+      </form>
+    </div>
+
+    <!-- Step 2: OTP Entry -->
+    <div class="step-panel" id="step2">
+      <h2 style="font-size:1.15rem; margin-bottom:.75rem;">Enter OTP</h2>
+
+      <!-- Email sent confirmation -->
+      <div class="email-sent-banner" id="email-sent-banner">
+        <div class="icon">📬</div>
+        <div>
+          <strong>OTP sent to your email!</strong>
+          <span>Check your inbox at <strong id="show-email"></strong>. It may take up to a minute. Also check your spam folder.</span>
+        </div>
+      </div>
+
+      <form id="form-step2" novalidate>
+        <div class="otp-row">
+          <input class="otp-cell" id="otp0" type="text" maxlength="1" inputmode="numeric" autocomplete="one-time-code"/>
+          <input class="otp-cell" id="otp1" type="text" maxlength="1" inputmode="numeric"/>
+          <input class="otp-cell" id="otp2" type="text" maxlength="1" inputmode="numeric"/>
+          <input class="otp-cell" id="otp3" type="text" maxlength="1" inputmode="numeric"/>
+          <input class="otp-cell" id="otp4" type="text" maxlength="1" inputmode="numeric"/>
+          <input class="otp-cell" id="otp5" type="text" maxlength="1" inputmode="numeric"/>
+        </div>
+        <div class="timer" id="otp-timer">OTP expires in <span id="countdown">5:00</span></div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-verify" style="margin-top:1.25rem;">
+          ✅ Verify & Login
+        </button>
+      </form>
+
+      <div style="text-align:center; margin-top:1rem;">
+        <button class="resend-btn" id="resend-btn" disabled onclick="resendOtp()">🔁 Resend OTP</button>
+        &nbsp;·&nbsp;
+        <button style="background:none;border:none;color:var(--text-muted);font-size:.82rem;cursor:pointer;" onclick="goBack()">← Change email</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Success -->
+    <div class="step-panel" id="step3" style="text-align:center;">
+      <div class="success-icon">🎉</div>
+      <h2 style="font-size:1.3rem; margin-bottom:.5rem;">You're logged in!</h2>
+      <p style="color:var(--text-secondary); margin-bottom:.5rem;">Welcome, <strong id="show-name"></strong></p>
+      <p style="font-size:.85rem; color:var(--text-muted); margin-bottom:1.75rem;">You can now file complaints with your verified identity.</p>
+      <a href="/" class="btn btn-primary btn-lg btn-block"
+         style="font-size:1rem;display:flex;align-items:center;justify-content:center;gap:.6rem;">
+        <span style="font-size:1.6rem;">🏠</span> Go to Main Page
+      </a>
+      <a href="/submit" class="btn btn-secondary btn-block" style="margin-top:.75rem;font-size:1rem;display:flex;align-items:center;justify-content:center;gap:.6rem;">
+        <span style="font-size:1.5rem;">📝</span> File a Complaint
+      </a>
+    </div>
+
+  </div>
+
+  <p style="text-align:center; margin-top:1.25rem; font-size:.82rem; color:var(--text-muted);">
+    <a href="/" style="color:var(--accent);">← Back to Awaaz</a>
+  </p>
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+  let email = '', name = '', timerInterval = null, secondsLeft = 300;
+
+  function showStep(n) {
+    [1,2,3].forEach(i => {
+      document.getElementById(`step${i}`).classList.toggle('visible', i === n);
+      const dot = document.getElementById(`sdot-${i}`);
+      dot.className = 'step-dot' + (i < n ? ' done' : i === n ? ' active' : '');
+    });
+  }
+
+  // ── Step 1: Send OTP ────────────────────────────────────────────────────────
+  document.getElementById('form-step1').addEventListener('submit', async e => {
+    e.preventDefault();
+    name  = document.getElementById('inp-name').value.trim();
+    email = document.getElementById('inp-email').value.trim().toLowerCase();
+    if (!name) { showToast('Please enter your full name.', 'error'); return; }
+    if (!email || !email.includes('@')) { showToast('Please enter a valid email address.', 'error'); return; }
+
+    const btn = document.getElementById('btn-send-otp');
+    btn.disabled = true; btn.textContent = '⏳ Sending OTP…';
+    try {
+      await apiPost('/api/user/send-otp', { name, email });
+      document.getElementById('show-email').textContent = email;
+      showStep(2);
+      startTimer();
+      document.getElementById('otp0').focus();
+      showToast('OTP sent to ' + email, 'success');
+    } catch(err) {
+      showToast(err.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = '📧 Send OTP to Email';
+  });
+
+  // ── OTP cell auto-advance ───────────────────────────────────────────────────
+  for (let i = 0; i < 6; i++) {
+    const cell = document.getElementById(`otp${i}`);
+    cell.addEventListener('input', () => {
+      cell.value = cell.value.replace(/\D/g, '').slice(-1);
+      if (cell.value && i < 5) document.getElementById(`otp${i+1}`).focus();
+    });
+    cell.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !cell.value && i > 0) document.getElementById(`otp${i-1}`).focus();
+    });
+    // Support paste
+    cell.addEventListener('paste', e => {
+      e.preventDefault();
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+      for (let j = 0; j < pasted.length && j < 6; j++) {
+        document.getElementById(`otp${j}`).value = pasted[j];
+      }
+      const last = Math.min(pasted.length, 5);
+      document.getElementById(`otp${last}`).focus();
+    });
+  }
+
+  // ── Step 2: Verify OTP ──────────────────────────────────────────────────────
+  document.getElementById('form-step2').addEventListener('submit', async e => {
+    e.preventDefault();
+    const otp = [0,1,2,3,4,5].map(i => document.getElementById(`otp${i}`).value).join('');
+    if (otp.length < 6) { showToast('Please enter all 6 OTP digits.', 'error'); return; }
+
+    const btn = document.getElementById('btn-verify');
+    btn.disabled = true; btn.textContent = '⏳ Verifying…';
+    try {
+      await apiPost('/api/user/verify-otp', { email, otp });
+      clearInterval(timerInterval);
+      document.getElementById('show-name').textContent = name;
+      showStep(3);
+    } catch(err) {
+      showToast(err.message, 'error');
+      [0,1,2,3,4,5].forEach(i => document.getElementById(`otp${i}`).value = '');
+      document.getElementById('otp0').focus();
+    }
+    btn.disabled = false; btn.textContent = '✅ Verify & Login';
+  });
+
+  // ── Timer ───────────────────────────────────────────────────────────────────
+  function startTimer() {
+    secondsLeft = 300;
+    clearInterval(timerInterval);
+    document.getElementById('resend-btn').disabled = true;
+    document.getElementById('otp-timer').innerHTML = 'OTP expires in <span id="countdown">5:00</span>';
+    timerInterval = setInterval(() => {
+      secondsLeft--;
+      const m = Math.floor(secondsLeft / 60).toString();
+      const s = (secondsLeft % 60).toString().padStart(2,'0');
+      const cd = document.getElementById('countdown');
+      if (cd) cd.textContent = `${m}:${s}`;
+      if (secondsLeft <= 0) {
+        clearInterval(timerInterval);
+        document.getElementById('otp-timer').textContent = 'OTP expired. Click Resend.';
+        document.getElementById('resend-btn').disabled = false;
+      }
+    }, 1000);
+  }
+
+  async function resendOtp() {
+    const btn = document.getElementById('resend-btn');
+    btn.disabled = true; btn.textContent = '⏳ Resending…';
+    try {
+      await apiPost('/api/user/send-otp', { name, email });
+      showToast('OTP resent to ' + email + '. Check your inbox.', 'success');
+      [0,1,2,3,4,5].forEach(i => document.getElementById(`otp${i}`).value = '');
+      document.getElementById('otp0').focus();
+      startTimer();
+    } catch(err) {
+      showToast('Failed to resend: ' + err.message, 'error');
+      btn.disabled = false;
+    }
+    btn.textContent = '🔁 Resend OTP';
+  }
+
+  function goBack() { clearInterval(timerInterval); showStep(1); }
+
+  // Auto-redirect if already logged in
+  (async () => {
+    try {
+      const me = await apiGet('/api/user/me');
+      if (me.logged_in) {
+        const next = new URLSearchParams(location.search).get('next') || '/';
+        location.href = next;
+      }
+    } catch(_) {}
+  })();
+</script>
+</body>
+</html>

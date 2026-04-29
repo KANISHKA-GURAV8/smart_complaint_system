@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard — Awaaz</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <style>
+    .admin-layout { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
+    .sidebar {
+      background:var(--bg-secondary); border-right:1px solid var(--border);
+      padding:1.5rem 1rem; display:flex; flex-direction:column; gap:.5rem;
+      position:sticky; top:0; height:100vh; overflow-y:auto;
+    }
+    .sidebar-brand { display:flex; align-items:center; gap:.6rem; padding:.5rem; margin-bottom:1rem; }
+    .sidebar-brand .logo-icon { width:34px; height:34px; border-radius:10px; background:var(--accent-grad); display:flex; align-items:center; justify-content:center; }
+    .sidebar-brand span { font-weight:800; font-size:1rem; }
+    .nav-item {
+      display:flex; align-items:center; gap:.6rem; padding:.65rem .85rem;
+      border-radius:var(--radius-sm); color:var(--text-secondary); font-size:.9rem;
+      font-weight:500; transition:all .2s; cursor:pointer; text-decoration:none; border:none; background:none; width:100%;
+    }
+    .nav-item:hover { background:var(--bg-card); color:var(--text-primary); }
+    .nav-item.active { background:rgba(108,99,255,0.15); color:var(--accent); }
+    .sidebar-divider { height:1px; background:var(--border); margin:.5rem 0; }
+    .main-content { padding:2rem; overflow-y:auto; }
+    .filters-bar { display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; margin-bottom:1.5rem; }
+    .filter-btn { padding:.4rem .9rem; border-radius:100px; font-size:.82rem; font-weight:600; cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--text-secondary); transition:all .2s; }
+    .filter-btn.active { background:rgba(108,99,255,0.15); border-color:var(--accent); color:var(--accent); }
+    .filter-btn.emergency-filter.active { background:var(--emergency-bg); border-color:var(--emergency); color:var(--emergency); }
+    .complaint-count { margin-left:auto; font-size:.85rem; color:var(--text-muted); }
+    .no-complaints { text-align:center; padding:3rem; color:var(--text-muted); }
+    .no-complaints .icon { font-size:3rem; margin-bottom:.75rem; }
+    @media(max-width:768px){
+      .admin-layout { grid-template-columns:1fr; }
+      .sidebar { display:none; }
+    }
+  </style>
+</head>
+<body>
+<div class="admin-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo-icon">🛡️</div>
+      <span>Awaaz Admin</span>
+    </div>
+    <a class="nav-item active" href="/admin/dashboard">📋 All Complaints</a>
+    <a class="nav-item" href="/admin/dashboard?emergency=true">🚨 Emergency</a>
+    <div class="sidebar-divider"></div>
+    <a class="nav-item" href="/" target="_blank">🌐 Public Site</a>
+    <a class="nav-item" href="/api/verify-chain" target="_blank">🔗 Verify Chain</a>
+    <div class="sidebar-divider"></div>
+    <button class="nav-item" onclick="logout()" style="color:var(--emergency);">🚪 Logout</button>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <!-- Stats -->
+    <div class="stats-grid" id="stats-grid" style="margin-bottom:1.5rem;"></div>
+
+    <!-- Filters -->
+    <div class="filters-bar">
+      <button class="filter-btn active" data-status="" onclick="setFilter('',this)">All</button>
+      <button class="filter-btn" data-status="received" onclick="setFilter('received',this)">📥 Received</button>
+      <button class="filter-btn" data-status="assigned" onclick="setFilter('assigned',this)">🏢 Assigned</button>
+      <button class="filter-btn" data-status="in_progress" onclick="setFilter('in_progress',this)">🔧 In Progress</button>
+      <button class="filter-btn" data-status="resolved" onclick="setFilter('resolved',this)">✅ Resolved</button>
+      <button class="filter-btn emergency-filter" data-emergency="true" onclick="toggleEmergency(this)">🚨 Emergency Only</button>
+      <span class="complaint-count" id="complaint-count"></span>
+    </div>
+
+    <!-- Table -->
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div class="table-wrapper">
+        <table id="complaints-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Location</th>
+              <th>Language</th>
+              <th>Filed</th>
+              <th>Assigned To</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="complaints-tbody">
+            <tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--text-muted);">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+  let currentStatus = '';
+  let emergencyOnly = new URLSearchParams(location.search).get('emergency') === 'true';
+
+  if (emergencyOnly) {
+    document.querySelector('.emergency-filter').classList.add('active');
+  }
+
+  async function loadStats() {
+    try {
+      const s = await apiGet('/api/stats');
+      document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card"><div class="stat-value">${s.total}</div><div class="stat-label">Total</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:var(--emergency);">${s.emergency}</div><div class="stat-label">Emergency</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:var(--accent);">${s.in_progress}</div><div class="stat-label">In Progress</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:var(--success);">${s.resolved}</div><div class="stat-label">Resolved</div></div>
+      `;
+    } catch(e) {
+      if (e.message === 'Unauthorized') { location.href = '/admin'; }
+    }
+  }
+
+  async function loadComplaints() {
+    try {
+      let url = `/api/admin/complaints?status=${currentStatus}&emergency=${emergencyOnly}`;
+      const data = await apiGet(url);
+      document.getElementById('complaint-count').textContent = `${data.length} complaints`;
+      const tbody = document.getElementById('complaints-tbody');
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="8"><div class="no-complaints"><div class="icon">📭</div><p>No complaints found.</p></div></td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(c => `
+        <tr class="${c.is_emergency ? 'emergency-row' : ''}" onclick="location.href='/admin/complaint/${c.id}'" style="cursor:pointer;">
+          <td style="font-family:'JetBrains Mono',monospace; font-weight:600; font-size:.85rem; color:var(--accent);">${c.id}</td>
+          <td>${statusBadge(c.status)}</td>
+          <td>${c.is_emergency ? '<span class="badge badge-emergency">🚨 Emergency</span>' : '<span class="badge badge-normal">⚡ Normal</span>'}</td>
+          <td style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.85rem;">${c.location_name || '—'}</td>
+          <td style="font-size:.85rem;">${c.language.toUpperCase()}</td>
+          <td style="font-size:.82rem; color:var(--text-muted);">${fmtDate(c.created_at)}</td>
+          <td style="font-size:.85rem;">${c.assigned_to || '<span style="color:var(--text-muted);">Unassigned</span>'}</td>
+          <td><a href="/admin/complaint/${c.id}" class="btn btn-outline btn-sm" onclick="event.stopPropagation()">View →</a></td>
+        </tr>`).join('');
+    } catch(e) {
+      if (e.message === 'Unauthorized') location.href = '/admin';
+      showToast('Failed to load complaints: ' + e.message, 'error');
+    }
+  }
+
+  function setFilter(status, btn) {
+    currentStatus = status;
+    document.querySelectorAll('.filter-btn:not(.emergency-filter)').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadComplaints();
+  }
+
+  function toggleEmergency(btn) {
+    emergencyOnly = !emergencyOnly;
+    btn.classList.toggle('active', emergencyOnly);
+    loadComplaints();
+  }
+
+  async function logout() {
+    try { await apiPost('/api/admin/logout', {}); } catch(_) {}
+    location.href = '/admin';
+  }
+
+  loadStats();
+  loadComplaints();
+  setInterval(loadComplaints, 30000); // Auto-refresh every 30s
+</script>
+</body>
+</html>
