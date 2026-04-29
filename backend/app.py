@@ -85,6 +85,18 @@ def page_submit():
 def page_track():
     return send_from_directory(FRONTEND_DIR, 'track.html')
 
+# ── PWA files served from root (required for service worker scope) ─────────────
+@app.route('/sw.js')
+def pwa_sw():
+    resp = send_from_directory(os.path.join(FRONTEND_DIR, 'static'), 'sw.js')
+    resp.headers['Service-Worker-Allowed'] = '/'
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
+
+@app.route('/manifest.json')
+def pwa_manifest():
+    return send_from_directory(os.path.join(FRONTEND_DIR, 'static'), 'manifest.json')
+
 @app.route('/login')
 def page_user_login():
     return send_from_directory(FRONTEND_DIR, 'user_login.html')

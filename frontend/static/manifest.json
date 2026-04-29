@@ -1,0 +1,40 @@
+{
+  "name": "Awaaz — Smart Grievance Platform",
+  "short_name": "Awaaz",
+  "description": "File and track complaints in your local language. Powered by AI.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F0F1A",
+  "theme_color": "#6C63FF",
+  "orientation": "portrait-primary",
+  "lang": "en-IN",
+  "categories": ["government", "social", "utilities"],
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "File Complaint",
+      "short_name": "Complain",
+      "url": "/submit",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Track Status",
+      "short_name": "Track",
+      "url": "/track",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

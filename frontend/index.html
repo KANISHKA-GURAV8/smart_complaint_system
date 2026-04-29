@@ -2,9 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Awaaz — Smart Grievance Redressal Platform</title>
   <meta name="description" content="Submit complaints in your local language using voice or text. Track resolution transparently with blockchain-backed records."/>
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#6C63FF">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Awaaz">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
   <link rel="stylesheet" href="/static/style.css"/>
   <style>
     .hero-visual {
@@ -266,4 +275,14 @@
 </script>
 </div><!-- /page-body -->
 </body>
+<script>
+  // Register PWA Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(r => console.log('[PWA] Service Worker registered:', r.scope))
+        .catch(e => console.warn('[PWA] SW registration failed:', e));
+    });
+  }
+</script>
 </html>
