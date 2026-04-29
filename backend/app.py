@@ -30,8 +30,15 @@ app = Flask(
 )
 app.secret_key = os.getenv('SECRET_KEY', 'grievance-secret-2024')
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20 MB
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(BASE_DIR, 'complaints.db')}"
+
+# ── Database: PostgreSQL on Render, SQLite locally ─────────────────────────────
+_db_url = os.getenv('DATABASE_URL', f"sqlite:///{os.path.join(BASE_DIR, 'complaints.db')}")
+# Render gives postgres:// but SQLAlchemy requires postgresql://
+if _db_url.startswith('postgres://'):
+    _db_url = _db_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 
 CORS(app, supports_credentials=True)
 
